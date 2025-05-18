@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="zh-cn">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="referrer" content="never" />
+    <meta name="keywords" content="嵌入式软件架构设计,交叉工具链" />
+    <meta name="description" content="一、引言 本文介绍运行时库实现的功能，你会看到在main函数执行之前都做了什么。先来理解以下代码：#include void init(void) __attribute__((constructor));void init(void){ printf(“before enter main!\..." />
+    <meta property="og:description" content="一、引言 本文介绍运行时库实现的功能，你会看到在main函数执行之前都做了什么。先来理解以下代码：#include void init(void) __attribute__((constructor));void init(void){ printf(“before enter main!\..." />
+    <meta http-equiv="Cache-Control" content="no-transform" />
+    <meta http-equiv="Cache-Control" content="no-siteapp" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <title>main函数执行之前都干啥了----C/C++运行时库剖析 - 吴跃前 - 博客园</title>
+    <link rel="icon" id="favicon" href="https://assets.cnblogs.com/favicon_v3_2.ico" type="image/x-icon" />
+    <link rel="canonical" href="https://www.cnblogs.com/yueqian-scut/p/3952263.html" />
+    
+    <link rel="stylesheet" href="/css/blog-common.min.css?v=oylsY-OBVp7cfARDOCk8sVtcEdZ2JqpCX-npexmRfBk" />
+    
+
+    <link id="MainCss" rel="stylesheet" href="/skins/codinglife/bundle-codinglife.min.css?v=Y_rwBoAeMMnslejSY_1aFr04jEokgoLwMLVuAJWL40k" />
+        <link id="highlighter-theme-cnblogs" type="text/css" rel="stylesheet" href="/css/hljs/cnblogs.css?v=5J1NDtbnnIr2Rc2SdhEMlMxD4l9Eydj88B31E7_NhS4" />
+    
+    
+    <link id="mobile-style" media="only screen and (max-width: 767px)" type="text/css" rel="stylesheet" href="/skins/codinglife/bundle-codinglife-mobile.min.css?v=dcOGRM-ABOLHR0EIydLgL_egWTvOOfxQ7XFel-ct6D8" />
+    
+    <link type="application/rss+xml" rel="alternate" href="https://www.cnblogs.com/yueqian-scut/rss" />
+    <link type="application/rsd+xml" rel="EditURI" href="https://www.cnblogs.com/yueqian-scut/rsd.xml" />
+    <link type="application/wlwmanifest+xml" rel="wlwmanifest" href="https://www.cnblogs.com/yueqian-scut/wlwmanifest.xml" />
+    
+    <script type="application/ld&#x2B;json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BlogPosting",
+      "@id": "https://www.cnblogs.com/yueqian-scut/p/3952263.html",
+      "headline": "main函数执行之前都干啥了----C/C&#x2B;&#x2B;运行时库剖析",
+      "description": "一、引言 本文介绍运行时库实现的功能，你会看到在main函数执行之前都做了什么。先来理解以下代码：#include void init(void) __attribute__((constructor));void init(void){ printf(“before enter main!\\...",
+      "image": [
+        
+      ],
+      "author": {
+        "@type": "Person",
+        "@id": "https://www.cnblogs.com/yueqian-scut/",
+        "name": "吴跃前",
+        "url": "https://www.cnblogs.com/yueqian-scut/"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "@id": "https://www.cnblogs.com/",
+        "name": "博客园",
+        "url": "https://www.cnblogs.com/"
+      },
+      "datePublished": "2014-04-23T23:03:00.0000000&#x2B;08:00",
+      "dateModified": "2014-09-02T22:06:00.0000000&#x2B;08:00",
+      "wordCount": "11155",
+      "isPartOf": {
+        "@type": "Blog",
+        "@id": "https://www.cnblogs.com/yueqian-scut/",
+        "name": "嵌入式企鹅圈",
+        "publisher": {
+          "@type": "Organization",
+          "@id": "https://www.cnblogs.com/",
+          "name": "博客园"
+        }
+      }
+    }
+    </script>
+
+    <script>
+        var currentBlogId = 196992;
+        var currentBlogApp = 'yueqian-scut';
+        var isLogined = false;
+        var isBlogOwner = false;
+        var skinName = 'CodingLife';
+        var visitorUserId = '';
+        var hasCustomScript = false;
+        window.cb_enable_mathjax = false;
+        window.mathEngine = 0;
+        window.codeHighlightEngine = 1;
+        window.enableCodeLineNumber = false;
+        window.codeHighlightTheme = 'cnblogs';
+        window.darkModeCodeHighlightTheme = 'vs2015';
+        window.isDarkCodeHighlightTheme = false;
+        window.isDarkModeCodeHighlightThemeDark = true;
+        window.isDisableCodeHighlighter = false;
+        window.enableCodeThemeTypeFollowSystem = false;
+        window.enableMacStyleCodeBlock = false;
+    </script>
+        <script>
+            window.currentPostId = 3952263;
+            window.currentPostDateAdded = '2014-04-23 23:03';
+        </script>
+    <script src="https://assets.cnblogs.com/scripts/jquery-3.3.1.min.js"></script>
+    <script src="https://cdn-www.cnblogs.com/js/blog-common.min.js?v=mBjuid27b6n0QnIKcRNhdlisAqAg5r2aHAIAihtWE28"></script>
+    
+</head>
+<body class="skin-codinglife has-navbar">
+    <a name="top"></a>
+        <div id="imagebar" class="imagebar-mobile imagebar-text-mobile formobile">
+                <a href="https://www.doubao.com?channel=cnblogs&amp;source=hw_db_cnblogs&amp;type=lunt&amp;theme=bianc" onclick="countCreativeClicks('M2-字节-豆包')" rel="nofollow">
+                    <img src="https://img2024.cnblogs.com/blog/35695/202412/35695-20241201073014811-1847930772.jpg" alt="" onload="countCreativeImpressionsOnMobile('M2-字节-豆包')" />
+                    <span id="m2_impression" style="display:none"></span>
+                </a>
+        </div>
+    <div id="top_nav" class="navbar forpc">
+        <nav id="nav_main" class="navbar-main">
+            <ul id="nav_left" class="navbar-list navbar-left">
+                <li class="navbar-branding">                    
+                    <a href="https://www.cnblogs.com/" title="开发者的网上家园" role="banner">
+                        <img src="//assets.cnblogs.com/logo.svg" alt="博客园logo" />
+                    </a>
+                </li>               
+                <li><a href="https://cnblogs.vip/">会员</a></li>
+                <li><a href="https://cnblogs.vip/store">周边</a></li>
+                <li><a href="https://news.cnblogs.com/" onclick="countClicks('nav', 'skin-navbar-news')">新闻</a></li>
+                <li><a href="https://q.cnblogs.com/" onclick="countClicks('nav', 'skin-navbar-q')">博问</a></li>
+                <li><a href="https://ing.cnblogs.com/" onclick="countClicks('nav', 'skin-navbar-ing')">闪存</a></li>
+                <li><a href="https://www.cnblogs.com/cmt/p/18341478">赞助商</a></li>
+                <li><a href="https://chat2db-ai.com/" target="_blank" onclick="countClicks('nav', 'skin-navbar-chat2db')">Chat2DB</a></li>
+            </ul>
+            <ul id="nav_right" class="navbar-list navbar-right">
+                <li>
+                    <form id="zzk_search" class="navbar-search dropdown" action="https://zzk.cnblogs.com/s" method="get" role="search">
+                        <input name="w" id="zzk_search_input" placeholder="代码改变世界" type="search" tabindex="3" autocomplete="off" />
+                        <button id="zzk_search_button" onclick="window.navbarSearchManager.triggerActiveOption()">
+                            <img id="search_icon" class="focus-hidden" src="//assets.cnblogs.com/icons/search.svg" alt="搜索" />
+                            <img class="hidden focus-visible" src="//assets.cnblogs.com/icons/enter.svg" alt="搜索" />
+                        </button>
+                        <ul id="navbar_search_options" class="dropdown-menu quick-search-menu">
+                            <li tabindex="0" class="active" onclick="zzkSearch(event, document.getElementById('zzk_search_input').value)">
+                                <div class="keyword-wrapper">
+                                    <img src="//assets.cnblogs.com/icons/search.svg" alt="搜索" />
+                                    <div class="keyword"></div>
+                                </div>
+                                <span class="search-area">所有博客</span>
+                            </li>
+                                    <li tabindex="1" onclick="zzkBlogSearch(event, 'yueqian-scut', document.getElementById('zzk_search_input').value)">
+                                        <div class="keyword-wrapper">
+                                            <img src="//assets.cnblogs.com/icons/search.svg" alt="搜索" />
+                                            <div class="keyword"></div>
+                                        </div>
+                                        <span class="search-area">当前博客</span>
+                                    </li>
+                        </ul>
+                    </form>
+                </li>
+                <li id="navbar_login_status" class="navbar-list">
+                    <a class="navbar-user-info navbar-blog" href="https://i.cnblogs.com/EditPosts.aspx?opt=1" alt="写随笔" title="写随笔">
+                        <img id="new_post_icon" class="navbar-icon" src="//assets.cnblogs.com/icons/newpost.svg" alt="写随笔" />
+                    </a>
+                    <a id="navblog-myblog-icon" class="navbar-user-info navbar-blog" href="https://passport.cnblogs.com/GetBlogApplyStatus.aspx" alt="我的博客" title="我的博客">
+                        <img id="myblog_icon" class="navbar-icon" src="//assets.cnblogs.com/icons/myblog.svg" alt="我的博客" />
+                    </a>
+                    <a class="navbar-user-info navbar-message navbar-icon-wrapper" href="https://msg.cnblogs.com/" alt="短消息" title="短消息">
+                        <img id="msg_icon" class="navbar-icon" src="//assets.cnblogs.com/icons/message.svg" alt="短消息" />
+                        <span id="msg_count" style="display: none"></span>
+                    </a>
+                    <a id="navbar_lite_mode_indicator" data-current-page="blog" style="display: none" href="javascript:void(0)" alt="简洁模式" title="简洁模式启用，您在访问他人博客时会使用简洁款皮肤展示">
+                        <img class="navbar-icon" src="//assets.cnblogs.com/icons/lite-mode-on.svg" alt="简洁模式" />
+                    </a>
+                    <div id="user_info" class="navbar-user-info dropdown">
+                        <a class="dropdown-button" href="https://home.cnblogs.com/">
+                            <img id="user_icon" class="navbar-avatar" src="//assets.cnblogs.com/icons/avatar-default.svg" alt="用户头像" />
+                        </a>
+                        <div class="dropdown-menu">
+                            <a id="navblog-myblog-text" href="https://passport.cnblogs.com/GetBlogApplyStatus.aspx">我的博客</a>
+                            <a href="https://home.cnblogs.com/">我的园子</a>
+                            <a href="https://account.cnblogs.com/settings/account">账号设置</a>
+                            <a href="https://vip.cnblogs.com/my">会员中心</a>
+                            <a href="javascript:void(0)" id="navbar_lite_mode_toggle" title="简洁模式会使用简洁款皮肤显示所有博客">
+    简洁模式 <span id="navbar_lite_mode_spinner" class="hide">...</span>
+</a>
+
+                            <a href="javascript:void(0)" onclick="account.logout();">退出登录</a>
+                        </div>
+                    </div>
+                    <a class="navbar-anonymous" href="https://account.cnblogs.com/signup">注册</a>
+                    <a class="navbar-anonymous" href="javascript:void(0);" onclick="account.login()">登录</a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+
+    
+
+    <div id="home">
+<div id="header">
+	<div id="blogTitle">
+        <a id="lnkBlogLogo" href="https://www.cnblogs.com/yueqian-scut/"><img id="blogLogo" src="/skins/custom/images/logo.gif" alt="返回主页" /></a>		
+		
+
+<h1><a id="Header1_HeaderTitle" class="headermaintitle HeaderMainTitle" href="https://www.cnblogs.com/yueqian-scut">嵌入式企鹅圈</a>
+</h1>
+<h2>嵌入式企鹅圈（微信公众号）原创团队由阿里、魅族、nvidia、龙芯、炬力、TRS资深工程师组成。分享嵌入式、Linux、物联网、GPU、Android、自动驾驶等技术！</h2>
+
+
+
+
+		
+	</div>
+	<div id="navigator">
+		
+<ul id="navList">
+<li><a id="blog_nav_sitehome" class="menu" href="https://www.cnblogs.com/">
+博客园</a>
+</li>
+<li>
+<a id="blog_nav_myhome" class="menu" href="https://www.cnblogs.com/yueqian-scut/">
+首页</a>
+</li>
+<li>
+
+<a id="blog_nav_newpost" class="menu" href="https://i.cnblogs.com/EditPosts.aspx?opt=1">
+新随笔</a>
+</li>
+<li>
+<a id="blog_nav_contact" class="menu" href="https://msg.cnblogs.com/send/%E5%90%B4%E8%B7%83%E5%89%8D">
+联系</a></li>
+<li>
+<a id="blog_nav_rss" class="menu" href="javascript:void(0)" data-rss="https://www.cnblogs.com/yueqian-scut/rss/">
+订阅</a>
+<!--<partial name="./Shared/_XmlLink.cshtml" model="Model" /></li>--></li>
+<li>
+<a id="blog_nav_admin" class="menu" href="https://i.cnblogs.com/">
+管理</a>
+</li>
+</ul>
+
+
+		<div class="blogStats">
+			<div id="blog_stats_place_holder"><script>loadBlogStats();</script></div>
+		</div>
+	</div>
+</div>
+<div id="main">
+	<div id="mainContent">
+	<div class="forFlow">
+		<div id="post_detail">
+    
+    <div id="topics">
+        <div class="post">
+            <h1 class = "postTitle">
+                <a id="cb_post_title_url" class="postTitle2 vertical-middle" href="https://www.cnblogs.com/yueqian-scut/p/3952263.html" title="发布于 2014-04-23 23:03">
+    <span role="heading" aria-level="2">main函数执行之前都干啥了----C/C++运行时库剖析</span>
+    
+
+</a>
+
+            </h1>
+            <div class="clear"></div>
+            <div class="postBody">
+                <div id="cnblogs_post_body" class="blogpost-body blogpost-body-html">
+<p><span style="font-family: Microsoft YaHei; font-size: 18px">一、引言 &nbsp; &nbsp; &nbsp; &nbsp;</span></p>
+<p><span style="font-family: Microsoft YaHei; font-size: 18px">本文介绍运行时库实现的功能，你会看到在main函数执行之前都做了什么。先来理解以下代码：</span></p>
+<p>&nbsp;</p>
+<div>
+<div>
+<div><span style="font-family: Microsoft YaHei; font-size: 14px"><span style="white-space: pre">#include &lt;stdio.h&gt;<br>
+void init(void) __attribute__((constructor));<br>
+void init(void){<br>
+&nbsp;&nbsp;&nbsp; printf(“before enter main!\n”);<br>
+}<br>
+void exit_func(void){<br>
+&nbsp;&nbsp;&nbsp; printf(“after leave main!\n”);<br>
+}<br>
+int main(void){<br>
+&nbsp;&nbsp;&nbsp; int *m = malloc(5, sizeof(int));<br>
+&nbsp;&nbsp;&nbsp; atexit(exit_fun);<br>
+&nbsp;&nbsp;&nbsp; printf(“hello world!\n”);<br>
+}</span></span></div>
+<div>&nbsp;</div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">思考：</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">1 程序的运行结果是？</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">2进入main之前做了哪些操作，如果进入main？</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">3 如何支持printf函数？</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">4 退出main之后做了什么事情？</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">5 如何MALLOC和FREE等堆操作？</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">6 程序会造成内存泄露吗？</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">7 等等</span></div>
+
+</div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">二、运行时库概述</span></div>
+<div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px"><strong>任何一个C/C++程序，它的背后都有一套庞大的代码来进行支撑，以使得该程序能够正常运行。这套代码至少包括入口函数，及其依赖的函数所构成的函数集合。当然，它还应该包括各种标准函数（如字符串，数学运算等）的实现。一般的程序</strong><span style="font-weight: bold">运行过程如下：</span></span></div>
+<div>
+<div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">1.操作系统创建进程后，把控制权交给程序的入口函数（gcc –e (_startEntryPoint)）,&nbsp;&nbsp; 这个函数往往是运行时库的某个入口函数。</span><span style="font-family: &quot;Microsoft YaHei&quot;; font-size: 18px">&nbsp;glibc 的入口函数是_start,</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; msvc(vc6.0)是mainCRTStartup</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">2. 入口函数对运行库和程序运行环境进行初始化，包括堆，I/O，线程，全局变量构造（constructor）等。</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">3. 调用MAIN函数，正式开始执行程序主体。</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">4. 执行MAIN完毕，返回入口函数，进行清理工作，包括全局变量析构，堆销毁，关闭I/O等，然后进行系统调用介绍进程</span></div>
+
+</div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px"><br>
+</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">三、运行时库主要功能模块</span></div>
+<div>
+<div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">1.启动与退出，包括入口函数及其依赖函数</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">2.标准函数，C语言标准规定的标准函数</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">3.I/O，I/O功能的封装和实现，如提供PRINT</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">4.堆，堆的封装和实现</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">5.调试支持等</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px"><br>
+</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">四、程序详细运行过程</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">以下分析默认为WINDOWS静态链接过程。</span></div>
+
+</div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">1. 程序执行前装载器会把用户的参数和环境变量压入栈，<span style="font-family: &quot;Microsoft YaHei&quot;; font-size: 18px">接着操作系统把控制权交给mainCRTStartup入口函数。</span></span>
+<div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">用户的参数：对应</span><span style="font-family: &quot;Microsoft YaHei&quot;; font-size: 18px">int main(int argc,char *argv[])</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">环境变量：系统公用数据，系统搜索路径等等。</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">程序需要获取用户参数和环境变量均是 从栈上获取，需要理解栈帧的概念。</span></div>
+
+</div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px"><br>
+</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">2. 初始化和OS版本相关的全局变量</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px"><br>
+</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">3. 初始化堆，每个进程都有属于自己的堆。它是一次性从系统中申请一块比较大的虚拟空间（实际需要时（如malloc）才会映射到物理页），以后在进程中由库的堆管理算法来维护这个堆。当堆不够用时再继续申请一块大的虚拟空间继续分配。 可见，并非程序每次malloc都会调用系统API（API调用比较耗时，涉及到用户态到内核态的上下文切换），效率比较高.</span></div>
+<div>
+<div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">堆相关操作：</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">HeapCreate:创建一个堆，最终会调用virtualAlloc()系统API函数去创建堆。</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">HeapAlloc: malloc会调用该函数</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">HeapFree: free会调用该函数</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">HeapDestroy：摧毁一个堆</span></div>
+
+</div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px"><br>
+</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">4. I/O初始化，继承父进程打开文件表。可见，子进程是可以访问父进程打开的文件。</span><span style="font-family: &quot;Microsoft YaHei&quot;; font-size: 18px">如果父进程没有打开标准的输入输出，该进程会初始化标准输入输出。即初始化以下指针变量：</span><span style="font-family: &quot;Microsoft YaHei&quot;; font-size: 18px">stdin,stdout,stderr.</span><span style="font-family: &quot;Microsoft YaHei&quot;; font-size: 18px">它们都是FILE类型指针。</span><span style="font-family: &quot;Microsoft YaHei&quot;; font-size: 18px">在linux和windows中，打开文件对应于操作一个内核对象，其处于内核态，因此用户态是不能直接操作该内核对象的。用户只能操作与内核对象相关联的FILE结构指针。</span><span style="font-family: &quot;Microsoft YaHei&quot;; font-size: 18px">对应关系是：</span></div>
+
+</div>
+
+</div>
+
+<span style="font-family: Microsoft YaHei; font-size: 18px"><img src="https://www.cnblogs.com/" alt=""><br>
+</span></div>
+
+<span style="font-family: Microsoft YaHei; font-size: 18px"><img src="//img-blog.csdn.net/20140423224750578?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQveXVlcWlhbl9zY3V0/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/Center" alt=""><br>
+</span></div>
+<div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">Printf其实是调用stdout指针在屏幕上输出</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">#define printf(args…) fprintf(stdout, ##args)</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">Args…表示变长输入参数。用以下四个宏根据栈来获取。</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">Va_list、Va_start、Va_arg、Va_end</span></div>
+
+</div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px"><br>
+</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">5. 获取命令行参数和环境变量</span>
+<div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px"><span style="color: rgba(102, 153, 255, 1)"><br>
+</span></span></div>
+<div><span style="font-family: &quot;Microsoft YaHei&quot;; font-size: 18px">6.&nbsp;</span><span style="font-family: &quot;Microsoft YaHei&quot;; font-size: 18px">初始化C库的一些数据</span></div>
+
+</div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px"><br>
+</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">7. 全局变量构造，如各个全局类对象的构造函数调用和标记 __attribute__((constructor))属性的各个函数。它们都应该在进入main前进行调用。</span></div>
+
+</div>
+
+</div>
+
+</div>
+<div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">需要运行时库和C/C++编译器、连接器的配合才能实现这个功能。</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">1）编译器编译某个.cpp（设为main.cpp）文件时，会将所有的构造函数实现作为一个整体放到.init段，把析构函数实现放到.finit段，然后在.ctors段放置.init段的地址（该地址即是该文件的各个构造函数的总入口）。</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">2）运行时库有一个库是crtbegin.o，它的.ctors段放置的内容为-1，ctrend.o,它的.ctors段放置的内容也是-1。</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">3）用链接器进行连接:ld crtbegin.o main.o crtend.o一定要按这种顺序，否则出错。链接后的.ELF文件是将以上各个文件的.init/.finit/.ctors等段分别合并。当然.data/.text段也会相应合并。</span></div>
+<div><span style="font-family: &quot;Microsoft YaHei&quot;; font-size: 18px">全局变量构造时即是遍历.ctors段的内容，从-1（crtbegin.o）开始，再到-1(crtend.o)结束，中间每四个字节即是各个文件的构造入口函数指针，如果非0，即进行调用。</span></div>
+<div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px"><br>
+</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">8. 注册析构函数</span>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">为了支持C++类的析构函数，和标记 __attribute__((deconstructor))属性的各个函数在main之后会被调用，而且是按构造的相反顺序进行调用，同样需要编译器和链接器以及运行时库的支持，原理跟构造相仿。只是为了逆序，使用了atexit注册各个虚构函数，注册时在链表头插入链接，main退出以后也从链表头开始获取链表函数，并进行调用。</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px"><br>
+</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">9. 执行函数主体。</span></div>
+<div>
+<div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">调用main函数执行，等待返回。</span><span style="font-family: &quot;Microsoft YaHei&quot;; font-size: 18px">在这里可以用到之前已经初始化的各种资源，如I/O, 堆申请释放等等</span></div>
+
+</div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px"><br>
+</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">10. 调用析构函数</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px"><br>
+</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">11. 释放堆</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">12. 释放其他资源</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">13 调用exit系统API退出进程</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px"><br>
+</span></div>
+<div>
+<div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px"><br>
+</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">五、回答引言的问题。</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px"><br>
+</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">1. 参考以上分析， 程序的打印结果是：</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">&nbsp;before enter main!</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">&nbsp;hello world!</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">&nbsp;after leave main!</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px"><br>
+</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px">2. 程序并不会产生系统内存泄漏。进程退出，其会摧毁整个堆。所谓内存泄露是指在进程的运行中，不恰当、不合理地申请内存，但没有释放内存。</span></div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px"><br>
+</span></div>
+<div><span style="font-family: Microsoft YaHei; font-size: 18px"><br>
+</span></div>
+<p>&nbsp;</p>
+</div>
+<div id="MySignature" role="contentinfo">
+    http://www.cnblogs.com/yueqian-scut/
+微信公众号：嵌入式企鹅圈
+</div>
+<div class="clear"></div>
+<div id="blog_post_info_block" role="contentinfo">
+    <div id="blog_post_info"></div>
+    <div class="clear"></div>
+    <div id="post_next_prev"></div>
+</div>
+            </div>
+            <div class="postDesc">posted @ 
+<span id="post-date" data-last-update-days="3911.023122716285" data-date-created="BlogServer.Application.Dto.BlogPost.BlogPostDto" data-date-updated="2014-09-02 22:06">2014-04-23 23:03</span>&nbsp;
+<a href="https://www.cnblogs.com/yueqian-scut">吴跃前</a>&nbsp;
+阅读(<span id="post_view_count">7672</span>)&nbsp;
+评论(<span id="post_comment_count">0</span>)&nbsp;
+&nbsp;
+<a href="javascript:void(0)" onclick="AddToWz(3952263);return false;">收藏</a>&nbsp;
+<a href="javascript:void(0)" onclick="reportManager.report({ currentUserId: '', targetType: 'blogPost', targetId: '3952263', targetLink: 'https://www.cnblogs.com/yueqian-scut/p/3952263.html', title: 'main函数执行之前都干啥了----C/C&#x2B;&#x2B;运行时库剖析' })">举报</a>
+</div>
+        </div>
+	    
+	    
+    </div><!--end: topics 文章、评论容器-->
+</div>
+<script>
+    var cb_entryId = 3952263, cb_entryCreatedDate = '2014-04-23 23:03', cb_postType = 1, cb_postTitle = 'main函数执行之前都干啥了----C/C++运行时库剖析';
+    var allowComments = true, cb_blogId = 196992, cb_blogApp = 'yueqian-scut', cb_blogUserGuid = 'e869b1c0-6b32-e411-b908-9dcfd8948a71';
+    mermaidRender.render()
+    markdown_highlight()
+    zoomManager.apply("#cnblogs_post_body img:not(.code_img_closed):not(.code_img_opened)");    
+</script>
+<a id="!comments"></a>
+<div id="blog-comments-placeholder"></div>
+<div id="comment_form" class="commentform">
+    <a name="commentform"></a>
+    <div id="divCommentShow"></div>
+    <div id="comment_nav"> 
+        <div class="comment-nav-right">
+            <span id="span_refresh_tips"></span><a href="#" onclick="return RefreshPage();">刷新页面</a><a href="#top">返回顶部</a>
+        </div>
+    </div>
+    <div id="comment_form_container"></div>
+    <div class="ad_text_commentbox" id="ad_text_under_commentbox"></div>
+        <div id="cnblogs_ch"></div>
+    <div id="opt_under_post"></div>
+        <div id="blog_c1" class="under-post-card">
+            <a href="https://www.doubao.com?channel=cnblogs&amp;source=hw_db_cnblogs&amp;type=lunt&amp;theme=bianc" rel="nofollow" target="_blank" onclick="countCreativeClicks('C1-字节-豆包')">
+                <img src="https://img2024.cnblogs.com/blog/35695/202412/35695-20241201072501456-2052907165.jpg" onload="countCreativeImpressions('C1-字节-豆包')" alt="" />
+                <span id="c1_impression" style="display:none"></span>
+            </a>
+        </div>
+    <div id="under_post_card1"></div>
+    <div id="under_post_card2"></div>
+    <div id="HistoryToday" class="under-post-card"></div>
+    <script type="text/javascript">
+        var commentManager = new blogCommentManager();
+        commentManager.renderComments(0);
+        fixPostBody();
+        window.footnoteTipManager.generateFootnoteTips();
+
+            window.tocManager.displayDisableTocTips = false;
+            window.tocManager.generateToc();
+            
+                setTimeout(function() { countViews(cb_blogId, cb_entryId); }, 50);
+            
+            deliverT2();
+            deliverC1C2();
+            loadNewsAndKb();
+            
+                LoadPostCategoriesTags(cb_blogId, cb_entryId);
+            
+            LoadPostInfoBlock(cb_blogId, cb_entryId, cb_blogApp, cb_blogUserGuid);
+            GetPrevNextPost(cb_entryId, cb_blogId, cb_entryCreatedDate, cb_postType);
+            loadOptUnderPost();
+            GetHistoryToday(cb_blogId, cb_blogApp, cb_entryCreatedDate);
+                </script>
+</div>
+
+	</div>
+	</div>
+	<div id="sideBar">
+		<div id="sideBarMain">
+			<div id="sidebar_news" class="newsItem">
+    <h3 class="catListTitle">公告</h3>
+<div id="blog-news" class="sidebar-news">
+    <div id="sidebar_news_container">
+    </div>
+</div>
+<script>loadBlogNews();</script>
+
+ 
+</div>
+<div id="sidebar_c3"></div>
+			<div id="blog-calendar" style="display:none"></div><script>loadBlogDefaultCalendar();</script>			
+			<div id="leftcontentcontainer">
+				<div id="blog-sidecolumn"></div>
+                    <script>loadBlogSideColumn();</script>
+			</div>			
+		</div>
+	</div>
+	<div class="clear"></div>
+	</div>
+	<div class="clear"></div>
+	<div id="footer">
+		<a href="https://www.cnblogs.com/" id="footer_site_link" class="footer-brand">博客园</a>
+<span class="footer-copyright"> &nbsp;&copy;&nbsp; 2004-2025</span>
+<br /><span class="footer-icp">
+    <a target="_blank" href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=33010602011771"><img src="//assets.cnblogs.com/images/ghs.png" />浙公网安备 33010602011771号</a>
+    <a href="https://beian.miit.gov.cn" target="_blank">浙ICP备2021040463号-3</a>
+</span>
+
+
+
+	</div>
+</div>
+
+
+
+    
+
+    <input type="hidden" id="antiforgery_token" value="CfDJ8Ct_7-Gh-gZNte6RB_khjDpERW8X1qtJ1MnBANsdPUqK7Z96LmIzjBYQYvPmdw0pbVyix4P_BMA6kSxkP0i-ZV2OpX2V_Din-5x_ugNmuSchiEy3BzS4iFYqMO9nyTZlhf3sQkleLBMe72Y_0UFggmw" />
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-M95P3TTWJZ"></script>
+<script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', 'G-M95P3TTWJZ');
+</script>
+<script defer src="https://hm.baidu.com/hm.js?866c9be12d4a814454792b1fd0fed295"></script>
+</body>
+</html>
